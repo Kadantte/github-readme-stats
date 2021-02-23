@@ -1,25 +1,25 @@
-const { getCardColors, FlexLayout, clampValue } = require("../src/utils");
+const Card = require("../common/Card");
+const { getCardColors, FlexLayout } = require("../common/utils");
+const { createProgressNode } = require("../common/createProgressNode");
+const { langCardLocales } = require("../translations");
+const I18n = require("../common/I18n");
 
-const createProgressNode = ({ width, color, name, progress }) => {
+const createProgressTextNode = ({ width, color, name, progress }) => {
   const paddingRight = 95;
   const progressTextX = width - paddingRight + 10;
   const progressWidth = width - paddingRight;
-  const progressPercentage = clampValue(progress, 2, 100);
 
   return `
     <text data-testid="lang-name" x="2" y="15" class="lang-name">${name}</text>
     <text x="${progressTextX}" y="34" class="lang-name">${progress}%</text>
-    <svg width="${progressWidth}">
-      <rect rx="5" ry="5" x="0" y="25" width="${progressWidth}" height="8" fill="#ddd"></rect>
-      <rect
-        height="8"
-        fill="${color}"
-        rx="5" ry="5" x="0" y="25"
-        data-testid="lang-progress"
-        width="${progressPercentage}%"
-      >
-      </rect>
-    </svg>
+    ${createProgressNode({
+      x: 0,
+      y: 25,
+      color,
+      width: progressWidth,
+      progress,
+      progressBarBackgroundColor: "#ddd",
+    })}
   `;
 };
 
@@ -63,6 +63,7 @@ const lowercaseTrim = (name) => name.toLowerCase().trim();
 const renderTopLanguages = (topLangs, options = {}) => {
   const {
     hide_title,
+    hide_border,
     card_width,
     title_color,
     text_color,
@@ -70,7 +71,14 @@ const renderTopLanguages = (topLangs, options = {}) => {
     hide,
     theme,
     layout,
+    custom_title,
+    locale,
   } = options;
+
+  const i18n = new I18n({
+    locale,
+    translations: langCardLocales,
+  });
 
   let langs = Object.values(topLangs);
   let langsToHide = {};
@@ -110,7 +118,7 @@ const renderTopLanguages = (topLangs, options = {}) => {
   // RENDER COMPACT LAYOUT
   if (layout === "compact") {
     width = width + 50;
-    height = 30 + (langs.length / 2 + 1) * 40;
+    height = 90 + Math.round(langs.length / 2) * 25;
 
     // progressOffset holds the previous language's width and used to offset the next language
     // so that we can stack them one after another, like this: [--][----][---]
@@ -158,7 +166,7 @@ const renderTopLanguages = (topLangs, options = {}) => {
   } else {
     finalLayout = FlexLayout({
       items: langs.map((lang) => {
-        return createProgressNode({
+        return createProgressTextNode({
           width: width,
           name: lang.name,
           color: lang.color || "#858585",
@@ -170,29 +178,30 @@ const renderTopLanguages = (topLangs, options = {}) => {
     }).join("");
   }
 
-  if (hide_title) {
-    height -= 30;
-  }
+  const card = new Card({
+    customTitle: custom_title,
+    defaultTitle: i18n.t("langcard.title"),
+    width,
+    height,
+    colors: {
+      titleColor,
+      textColor,
+      bgColor,
+    },
+  });
 
-  return `
-    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <style>
-        .header { font: 600 18px 'Segoe UI', Ubuntu, Sans-Serif; fill: ${titleColor} }
-        .lang-name { font: 400 11px 'Segoe UI', Ubuntu, Sans-Serif; fill: ${textColor} }
-      </style>
-      <rect data-testid="card-bg" x="0.5" y="0.5" width="99.7%" height="99%" rx="4.5" fill="${bgColor}" stroke="#E4E2E2"/>
+  card.disableAnimations();
+  card.setHideBorder(hide_border);
+  card.setHideTitle(hide_title);
+  card.setCSS(`
+    .lang-name { font: 400 11px 'Segoe UI', Ubuntu, Sans-Serif; fill: ${textColor} }
+  `);
 
-      ${
-        hide_title
-          ? ""
-          : `<text data-testid="header" x="25" y="35" class="header">Top Languages</text>`
-      }
-
-      <svg data-testid="lang-items" x="25" y="${hide_title ? 25 : 55}">
-        ${finalLayout}
-      </svg>
+  return card.render(`
+    <svg data-testid="lang-items" x="25">
+      ${finalLayout}
     </svg>
-  `;
+  `);
 };
 
 module.exports = renderTopLanguages;

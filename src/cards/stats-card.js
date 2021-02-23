@@ -1,13 +1,25 @@
+const I18n = require("../common/I18n");
+const Card = require("../common/Card");
+const icons = require("../common/icons");
+const { getStyles } = require("../getStyles");
+const { statCardLocales } = require("../translations");
 const {
   kFormatter,
-  getCardColors,
   FlexLayout,
-  encodeHTML,
-} = require("../src/utils");
-const getStyles = require("./getStyles");
-const icons = require("./icons");
+  clampValue,
+  measureText,
+  getCardColors,
+} = require("../common/utils");
 
-const createTextNode = ({ icon, label, value, id, index, showIcons }) => {
+const createTextNode = ({
+  icon,
+  label,
+  value,
+  id,
+  index,
+  showIcons,
+  shiftValuePos,
+}) => {
   const kValue = kFormatter(value);
   const staggerDelay = (index + 3) * 150;
 
@@ -23,7 +35,12 @@ const createTextNode = ({ icon, label, value, id, index, showIcons }) => {
     <g class="stagger" style="animation-delay: ${staggerDelay}ms" transform="translate(25, 0)">
       ${iconSvg}
       <text class="stat bold" ${labelOffset} y="12.5">${label}:</text>
-      <text class="stat" x="135" y="12.5" data-testid="${id}">${kValue}</text>
+      <text 
+        class="stat" 
+        x="${(showIcons ? 140 : 120) + shiftValuePos}" 
+        y="12.5" 
+        data-testid="${id}"
+      >${kValue}</text>
     </g>
   `;
 };
@@ -44,15 +61,19 @@ const renderStatsCard = (stats = {}, options = { hide: [] }) => {
     hide_title = false,
     hide_border = false,
     hide_rank = false,
+    include_all_commits = false,
     line_height = 25,
     title_color,
     icon_color,
     text_color,
     bg_color,
     theme = "default",
+    custom_title,
+    locale,
+    disable_animations = false,
   } = options;
 
-  const lheight = parseInt(line_height);
+  const lheight = parseInt(line_height, 10);
 
   // returns theme based colors with proper overrides and defaults
   const { titleColor, textColor, iconColor, bgColor } = getCardColors({
@@ -63,39 +84,52 @@ const renderStatsCard = (stats = {}, options = { hide: [] }) => {
     theme,
   });
 
+  const apostrophe = ["x", "s"].includes(name.slice(-1).toLocaleLowerCase())
+    ? ""
+    : "s";
+  const i18n = new I18n({
+    locale,
+    translations: statCardLocales({ name, apostrophe }),
+  });
+
   // Meta data for creating text nodes with createTextNode function
   const STATS = {
     stars: {
       icon: icons.star,
-      label: "Total Stars",
+      label: i18n.t("statcard.totalstars"),
       value: totalStars,
       id: "stars",
     },
     commits: {
       icon: icons.commits,
-      label: "Total Commits",
+      label: `${i18n.t("statcard.commits")}${
+        include_all_commits ? "" : ` (${new Date().getFullYear()})`
+      }`,
       value: totalCommits,
       id: "commits",
     },
     prs: {
       icon: icons.prs,
-      label: "Total PRs",
+      label: i18n.t("statcard.prs"),
       value: totalPRs,
       id: "prs",
     },
     issues: {
       icon: icons.issues,
-      label: "Total Issues",
+      label: i18n.t("statcard.issues"),
       value: totalIssues,
       id: "issues",
     },
     contribs: {
       icon: icons.contribs,
-      label: "Contributed to",
+      label: i18n.t("statcard.contribs"),
       value: contributedTo,
       id: "contribs",
     },
   };
+
+  const longLocales = ["cn", "es", "fr", "pt-br", "ru", "uk-ua", "id", "my", "pl"];
+  const isLongLocale = longLocales.includes(locale) === true;
 
   // filter out hidden stats defined by user & create the text nodes
   const statItems = Object.keys(STATS)
@@ -106,54 +140,23 @@ const renderStatsCard = (stats = {}, options = { hide: [] }) => {
         ...STATS[key],
         index,
         showIcons: show_icons,
-      })
+        shiftValuePos:
+          (!include_all_commits ? 50 : 20) + (isLongLocale ? 50 : 0),
+      }),
     );
 
   // Calculate the card height depending on how many items there are
   // but if rank circle is visible clamp the minimum height to `150`
   let height = Math.max(
     45 + (statItems.length + 1) * lheight,
-    hide_rank ? 0 : 150
+    hide_rank ? 0 : 150,
   );
 
-  // the better user's score the the rank will be closer to zero so
-  // subtracting 100 to get the progress in 100%
-  const progress = 100 - rank.score;
-
-  const styles = getStyles({
-    titleColor,
-    textColor,
-    iconColor,
-    show_icons,
-    progress,
-  });
-
   // Conditionally rendered elements
-
-  const apostrophe = ["x", "s"].includes(name.slice(-1)) ? "" : "s";
-  const title = hide_title
-    ? ""
-    : `<text x="25" y="35" class="header">${encodeHTML(name)}'${apostrophe} GitHub Stats</text>`;
-
-  const border = `
-    <rect 
-      data-testid="card-bg"
-      x="0.5"
-      y="0.5"
-      width="494"
-      height="99%"
-      rx="4.5"
-      fill="${bgColor}"
-      stroke="#E4E2E2"
-      stroke-opacity="${hide_border ? 0 : 1}"
-    />
-  `;
-
   const rankCircle = hide_rank
     ? ""
-    : `<g data-testid="rank-circle" transform="translate(400, ${
-        height / 1.85
-      })">
+    : `<g data-testid="rank-circle" 
+          transform="translate(400, ${height / 2 - 50})">
         <circle class="rank-circle-rim" cx="-10" cy="8" r="40" />
         <circle class="rank-circle" cx="-10" cy="8" r="40" />
         <g class="rank-text">
@@ -169,34 +172,59 @@ const renderStatsCard = (stats = {}, options = { hide: [] }) => {
         </g>
       </g>`;
 
-  if (hide_title) {
-    height -= 30;
-  }
+  // the better user's score the the rank will be closer to zero so
+  // subtracting 100 to get the progress in 100%
+  const progress = 100 - rank.score;
+  const cssStyles = getStyles({
+    titleColor,
+    textColor,
+    iconColor,
+    show_icons,
+    progress,
+  });
 
-  return `
-    <svg width="495" height="${height}" viewBox="0 0 495 ${height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <style>
-        ${styles}
-      </style>
-      
-      ${border}
-      ${title}
+  const calculateTextWidth = () => {
+    return measureText(custom_title ? custom_title : i18n.t("statcard.title"));
+  };
 
-      <g data-testid="card-body-content" transform="translate(0, ${
-        hide_title ? -30 : 0
-      })">
-        ${rankCircle}
+  const width = hide_rank
+    ? clampValue(
+        50 /* padding */ + calculateTextWidth() * 2,
+        270 /* min */,
+        Infinity,
+      )
+    : 495;
 
-        <svg x="0" y="55">
-          ${FlexLayout({
-            items: statItems,
-            gap: lheight,
-            direction: "column",
-          }).join("")}
-        </svg>
-      </g>
-    </svg>
-  `;
+  const card = new Card({
+    customTitle: custom_title,
+    defaultTitle: i18n.t("statcard.title"),
+    width,
+    height,
+    colors: {
+      titleColor,
+      textColor,
+      iconColor,
+      bgColor,
+    },
+  });
+
+  card.setHideBorder(hide_border);
+  card.setHideTitle(hide_title);
+  card.setCSS(cssStyles);
+
+  if (disable_animations) card.disableAnimations();
+
+  return card.render(`
+    ${rankCircle}
+
+    <svg x="0" y="0">
+      ${FlexLayout({
+        items: statItems,
+        gap: lheight,
+        direction: "column",
+      }).join("")}
+    </svg> 
+  `);
 };
 
 module.exports = renderStatsCard;
