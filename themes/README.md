@@ -149,6 +149,6 @@ Use `?theme=THEME_NAME` parameter like so :-
 [outrun_repo]: https://github-readme-stats.vercel.app/api/pin/?username=anuraghazra&repo=github-readme-stats&cache_seconds=86400&theme=outrun
 
 
-[add-theme]: https://github.com/anuraghazra/github-readme-stats/edit/master/themes/index.js
+[add-theme]: https://github.com/kadantte/github-readme-stats/edit/master/themes/index.js
 
 Wanted to add a new theme? Consider reading the [contribution guidelines](../CONTRIBUTING.md#themes-contribution) :D

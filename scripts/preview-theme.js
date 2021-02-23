@@ -17,8 +17,8 @@ const themeContribGuidelines = `
 
   \r> We are currently only accepting color combinations from any vscode theme or which has good color combination to minimize bloating the themes collection.
 
-  \r> Also note that if this theme is exclusively for your personal use then instead of adding it to our theme collection you can use card [customization options](https://github.com/anuraghazra/github-readme-stats#customization) 
-  \r> Read our [contribution guidelines](https://github.com/anuraghazra/github-readme-stats/blob/master/CONTRIBUTING.md) for more info
+  \r> Also note that if this theme is exclusively for your personal use then instead of adding it to our theme collection you can use card [customization options](https://github.com/kadantte/github-readme-stats#customization) 
+  \r> Read our [contribution guidelines](https://github.com/kadantte/github-readme-stats/blob/master/CONTRIBUTING.md) for more info
 `;
 
 async function run() {
