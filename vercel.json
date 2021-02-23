@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "https://about.kadantte.moe"
+      "destination": "https://kadantte.moe"
     }
   ]
 }
